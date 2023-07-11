@@ -45,6 +45,7 @@ class TestTraining(unittest.TestCase):
         training.train(model, dataloader, criterion, lr, n_epochs=n_epochs)
     
     def test_token_train(self):
+        device = "cuda" if torch.cuda.is_available() else "cpu" 
         max_seq = 20
         de = 128
         n_heads = 4
@@ -52,10 +53,11 @@ class TestTraining(unittest.TestCase):
         factor = 4
         data = SequenceDataset(os.path.join("data", "anna.txt"), max_seq)
         v_size = len(data._vocabulary)
-        mask = torch.triu(torch.ones(max_seq, max_seq), diagonal=1)
-        model = DTransformer(N, de, v_size, max_seq, n_heads, factor, mask)
-        data_loader = DataLoader(data)
+        mask = torch.triu(torch.ones(max_seq, max_seq), diagonal=1).to(device)
+        model = DTransformer(N, de, v_size, max_seq, n_heads, factor, mask).to(device)
+        data_loader = DataLoader(data, 1024)
         lr = 0.0001
-        n_epochs = 1
+        n_epochs = 10
         criterion = nn.CrossEntropyLoss()
         training.train(model, data_loader, criterion, lr, n_epochs)
+        model

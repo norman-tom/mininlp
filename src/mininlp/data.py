@@ -19,6 +19,5 @@ class SequenceDataset(Dataset):
     def __getitem__(self, index) -> int:
         x = self._sequence[index:index + self._l_seq - 1]
         x = torch.cat([torch.tensor([self._token_ids["<sos>"]]), x], dim=0)
-        y = F.one_hot(self._sequence[index:index+self._l_seq], num_classes=len(self._vocabulary))
-        y = y.float()
+        y = self._sequence[index:index+self._l_seq]
         return x, y
