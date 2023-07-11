@@ -68,7 +68,7 @@ class Embedding(nn.Module):
     def forward(self, tkn_ids) -> torch.Tensor:
         # Token embeddings + positonal encoding broadcasted to all batch examples
         x = self._token_embedding(tkn_ids)
-        x = x + self._pos_encoding.encoding.expand(x.size())
+        x = x + self._pos_encoding.encoding.expand(x.size()).to(x.device)
         return x
 
 class LanguageHead(nn.Module):
@@ -101,16 +101,17 @@ class FeedForward(nn.Module):
     def forward(self, x):
         # Layer normalization before feedforward which is standard practice.
         x = self._laynorm(x)
-        return x + self._ff(x)
+        x = x + self._ff(x)
+        return x
 
-class Attention(nn.Module):
+class Attention():
     """Computes the attention of Queries, Keys and Values
     """
 
     def __init__(self) -> None:
         super().__init__()
 
-    def forward(self, 
+    def __call__(self, 
                  Q: torch.Tensor, 
                  K: torch.Tensor, 
                  V: torch.Tensor, 
@@ -136,26 +137,27 @@ class MultiHeadAttention(nn.Module):
         # Projection for each Q, K, V in each head + the reprojection W0.
         _in = embedding_dim
         _out = embedding_dim // num_heads
-        self._projections = [
-            {
-                "Q": nn.Linear(_in, _out),
-                "K": nn.Linear(_in, _out),
-                "V": nn.Linear(_in, _out)
-            } for _ in range(num_heads)
-        ] + [nn.Linear(_in, _in)]
+        self._projections = nn.ModuleList([
+            nn.ModuleList([
+                nn.Linear(_in, _out, bias=False),
+                nn.Linear(_in, _out, bias=False),
+                nn.Linear(_in, _out, bias=False)
+            ]) for _ in range(num_heads)
+        ])
+        self._reprojection = nn.Linear(_in, _in)
 
     def forward(self, Q, K, V, mask=None):
         #TODO remove loop and make it parallelizable.
         x = [
             head(
-                proj["Q"](Q), 
-                proj["K"](K), 
-                proj["V"](V),
+                proj[0](Q), 
+                proj[1](K), 
+                proj[2](V),
                 mask
             ) for head, proj in zip(self._heads, self._projections)
         ]
         x = torch.cat(x, dim=-1)
-        x = self._projections[-1](x)
+        x = self._reprojection(x)
         return x
 
 class Encoder(nn.Module):
