@@ -233,17 +233,40 @@ class DTransformer(nn.Module):
         super().__init__()
         self._embedding = Embedding(vocab_size, embedding_dim, max_seq)
         self._decoder = Decoder(embedding_dim, num_heads, factor)
-        self._generator = LanguageHead(embedding_dim, vocab_size)
+        self._lang_head = LanguageHead(embedding_dim, vocab_size)
         self._probabilties = False
         self._mask = mask
         self._N = N
+        self._seq_len = max_seq
 
     def forward(self, tkn_ids):
         x = self._embedding(tkn_ids)
         for _ in range(self._N):
             x = self._decoder(x, None, self._mask)
-        x = self._generator(x, self._probabilties)
+        x = self._lang_head(x, self._probabilties)
         return x
+    
+    def generator(self, prompt):
+        """Generator for the DTransformer. 
+
+        Parameters
+        ----------
+        prompt : str
+            The prompt to start the text generation.
+        """
+
+        # Feed the prompt to the model
+        # Sample from the vocabulary using the distributrion to get the first predicted token
+        # update the prompt with the predicted token
+        # Feed the prompt back to the model
+        # Repeat for the number of tokens to generate.
+        self._probabilties = True # We want probablities from the language head.
+        prompt = prompt[-self._seq_len:]  # Truncate the prompt to the max sequence length.
+        for _ in range(self._seq_len):
+            o = self(prompt)                # Predict the sequence
+            t = torch.multinomial(o[-1], 1) # Sample from vocabulary using pytorch multinomial
+            prompt = torch.cat([prompt[-1][1:], t[-1:,:][-1]]).unsqueeze(0) # Update the prompt with the predicted token
+        return prompt
     
 class ETransformer():
     """Encoder only Transformer

@@ -109,7 +109,21 @@ class TestModel(unittest.TestCase):
         x = model(x)
         x
 
-
-
-
-
+    def test_generate(self):
+        N = 2
+        embedding_dim = 12
+        vocab_size = 20
+        max_seq = 6
+        num_heads = 4
+        factor = 4
+        mask = torch.triu(torch.ones(max_seq, max_seq), diagonal=1)
+        model = DTransformer(N, 
+                             embedding_dim, 
+                             vocab_size, 
+                             max_seq, 
+                             num_heads, 
+                             factor, 
+                             mask)
+        prompt = torch.randint(0, 20, (1, max_seq))
+        prompt = model.generator(prompt)
+        prompt
