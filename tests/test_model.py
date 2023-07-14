@@ -9,6 +9,7 @@ from mininlp.transformer import (PositionalEncoder,
                                  Encoder,
                                  Decoder,
                                  DTransformer)
+import os
 
 class TestModel(unittest.TestCase):
     #TODO Turns these into automated tests
@@ -127,3 +128,21 @@ class TestModel(unittest.TestCase):
         prompt = torch.randint(0, 20, (1, max_seq))
         prompt = model.generator(prompt)
         prompt
+
+    def test_generate_char(self):
+        ROOT_ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        PATH = os.path.join(ROOT_, "models", "Dtransformer_10.pt")
+        max_seq = 50
+        de = 128
+        n_heads = 4
+        N = 2
+        factor = 4
+        #data = SequenceDataset(os.path.join("data", "anna.txt"), max_seq)
+        v_size = len(data._vocabulary)
+        mask = torch.triu(torch.ones(max_seq, max_seq), diagonal=1)
+        model = DTransformer(N, de, v_size, max_seq, n_heads, factor, mask)
+        model.load_state_dict(torch.load(PATH))
+        model.eval()
+        sen = model.generator(data[0][0].unsqueeze(0).to(device))
+        chars = [data._tokens[s.item()] for s in sen[0]]
+        chars
