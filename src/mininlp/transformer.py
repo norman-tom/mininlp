@@ -246,26 +246,27 @@ class DTransformer(nn.Module):
         x = self._lang_head(x, self._probabilties)
         return x
     
-    def generator(self, prompt):
+    def generator(self, prompt: torch.Tensor) -> torch.Tensor:
         """Generator for the DTransformer. 
 
         Parameters
         ----------
-        prompt : str
-            The prompt to start the text generation.
+        prompt : torch.Tensor
+            The sequence of token ids to start the text generation.
+        
+        Returns
+        -------
+        torch.Tensor
+            The generated sequence of token ids.
         """
 
-        # Feed the prompt to the model
-        # Sample from the vocabulary using the distributrion to get the first predicted token
-        # update the prompt with the predicted token
-        # Feed the prompt back to the model
-        # Repeat for the number of tokens to generate.
         self._probabilties = True # We want probablities from the language head.
-        prompt = prompt[-self._seq_len:]  # Truncate the prompt to the max sequence length.
+        prompt = prompt[:, -self._seq_len:]  # Truncate the prompt to the max sequence length.
         for _ in range(self._seq_len):
             o = self(prompt)                # Predict the sequence
             t = torch.multinomial(o[-1], 1) # Sample from vocabulary using pytorch multinomial
             prompt = torch.cat([prompt[-1][1:], t[-1:,:][-1]]).unsqueeze(0) # Update the prompt with the predicted token
+        self._probabilties = False
         return prompt
     
 class ETransformer():

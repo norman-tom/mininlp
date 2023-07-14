@@ -8,8 +8,8 @@ def train(model: nn.Module , data: DataLoader, criterion, lr, n_epochs):
     optimizer = Adam(model.parameters(), lr)
     epochs = tqdm(range(n_epochs))
     for _ in epochs:
-        n_batch = 0
-        epoch_loss = 0
+        n_batch = 0.0
+        epoch_loss = 0.0
         for x, y in data:
             N = x.size()[0] * x.size()[1]
             x = x.to(device)

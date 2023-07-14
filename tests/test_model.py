@@ -9,6 +9,7 @@ from mininlp.transformer import (PositionalEncoder,
                                  Encoder,
                                  Decoder,
                                  DTransformer)
+from mininlp.data import SequenceDataset
 import os
 
 class TestModel(unittest.TestCase):
@@ -137,12 +138,13 @@ class TestModel(unittest.TestCase):
         n_heads = 4
         N = 2
         factor = 4
-        #data = SequenceDataset(os.path.join("data", "anna.txt"), max_seq)
+        data = SequenceDataset(os.path.join("data", "anna.txt"), max_seq)
         v_size = len(data._vocabulary)
         mask = torch.triu(torch.ones(max_seq, max_seq), diagonal=1)
         model = DTransformer(N, de, v_size, max_seq, n_heads, factor, mask)
-        model.load_state_dict(torch.load(PATH))
+        model.load_state_dict(torch.load(PATH, map_location=torch.device(device="cpu")))
         model.eval()
-        sen = model.generator(data[0][0].unsqueeze(0).to(device))
-        chars = [data._tokens[s.item()] for s in sen[0]]
-        chars
+        prompt = data.token_encoder("Three days after the quarrel, Prince Stepan Arkadyevitch").unsqueeze(0)
+        o = model.generator(prompt)
+        sentence = data.token_decoder(o[0])
+        sentence
