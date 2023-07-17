@@ -46,20 +46,21 @@ class TestTraining(unittest.TestCase):
     
     def test_token_train(self):
         ROOT_ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        PATH = os.path.join(ROOT_, "models", "Dtransformer_10.pt")
+        PATH = os.path.join(ROOT_, "models", "Dtransformer.pt")
         device = "cuda" if torch.cuda.is_available() else "cpu" 
-        max_seq = 50
+        max_seq = 128
         de = 128
         n_heads = 4
-        N = 2
+        N = 4
         factor = 4
         data = SequenceDataset(os.path.join("data", "anna.txt"), max_seq)
         v_size = len(data._vocabulary)
         mask = torch.triu(torch.ones(max_seq, max_seq), diagonal=1).to(device)
         model = DTransformer(N, de, v_size, max_seq, n_heads, factor, mask).to(device)
-        data_loader = DataLoader(data, 256)
-        lr = 0.0001
-        n_epochs = 10
+        data_loader = DataLoader(data, 1024)
+        lr = 5e-4
+        n_epochs = 100
         criterion = nn.CrossEntropyLoss()
+        print(sum(p.numel() for p in model.parameters())/1e6, 'M parameters')
         training.train(model, data_loader, criterion, lr, n_epochs)
         torch.save(model.state_dict(), PATH)
