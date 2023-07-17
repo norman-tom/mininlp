@@ -98,7 +98,7 @@ class FeedForward(nn.Module):
             nn.Linear(factor*embedding_dim, embedding_dim),
         )
 
-    def forward(self, x):
+    def forward(self, x) -> torch.Tensor:
         # Layer normalization before feedforward which is standard practice.
         x = self._laynorm(x)
         x = x + self._ff(x)
@@ -123,8 +123,8 @@ class Attention():
         if mask is not None:
             mask[mask == 1] = torch.inf
             scale = scale - mask
-        # softmax over K so dim=2
-        return torch.matmul(F.softmax(scale, dim=2), V) 
+        # softmax over K so last dimension
+        return torch.matmul(F.softmax(scale, dim=-1), V) 
 
 class MultiHeadAttention(nn.Module):
     """Computes the mulit-head attention of Queries, Keys, Values
@@ -146,7 +146,7 @@ class MultiHeadAttention(nn.Module):
         ])
         self._reprojection = nn.Linear(_in, _in)
 
-    def forward(self, Q, K, V, mask=None):
+    def forward(self, Q, K, V, mask=None) -> torch.Tensor:
         #TODO remove loop and make it parallelizable.
         x = [
             head(
@@ -170,7 +170,7 @@ class Encoder(nn.Module):
         self._ff = FeedForward(embedding_dim, factor)
         self._laynorm = nn.LayerNorm(embedding_dim)
 
-    def forward(self, x):
+    def forward(self, x) -> torch.Tensor:
         x = self._laynorm(x)
         x = x + self._mha(x, x, x)
         x = self._ff(x)
@@ -188,7 +188,7 @@ class Decoder(nn.Module):
         self._mha = MultiHeadAttention(embedding_dim, num_heads)
         self._ff = FeedForward(embedding_dim, factor)
     
-    def forward(self, x: torch.Tensor, z: torch.Tensor, mask: torch.Tensor):
+    def forward(self, x: torch.Tensor, z: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
         x = self._laynorm1(x)
         x = x + self._mmha(x, x, x, mask)
         x = self._laynorm2(x)
@@ -239,7 +239,7 @@ class DTransformer(nn.Module):
         self._N = N
         self._seq_len = max_seq
 
-    def forward(self, tkn_ids):
+    def forward(self, tkn_ids) -> torch.Tensor:
         x = self._embedding(tkn_ids)
         for _ in range(self._N):
             x = self._decoder(x, None, self._mask)
@@ -278,4 +278,3 @@ class EDTransformer():
     """Encoder Decoder Transformer for sequence to sequence prediction.
     """
     pass
-

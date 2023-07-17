@@ -9,7 +9,7 @@ from mininlp.data import SequenceDataset
 import os
 
 class TestTraining(unittest.TestCase):
-    def test_simple_train(self):
+    def test_simple_train(self) -> None:
         max_seq = 10
         de = 24
         v_size = 26
@@ -26,10 +26,10 @@ class TestTraining(unittest.TestCase):
                 self._vocab_size = vocab_size
                 self._seq = l_seq
 
-            def __len__(self):
+            def __len__(self) -> int:
                 return self._data.size()[0]
             
-            def __getitem__(self, index) -> torch.Tensor:
+            def __getitem__(self, index) -> tuple[torch.Tensor, torch.Tensor]:
                 x = self._data[index][:-1]
                 y = F.one_hot(self._data[index][1:], num_classes=self._vocab_size)
                 y = y.float()
@@ -39,12 +39,11 @@ class TestTraining(unittest.TestCase):
         dataset = Data(v_size, examples, max_seq)
         dataloader = DataLoader(dataset, batch_size=8, shuffle=False)
         criterion = nn.CrossEntropyLoss()
-
         lr = 0.001
         n_epochs = 200
         training.train(model, dataloader, criterion, lr, n_epochs=n_epochs)
     
-    def test_token_train(self):
+    def test_token_train(self) -> None:
         ROOT_ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         PATH = os.path.join(ROOT_, "models", "Dtransformer.pt")
         device = "cuda" if torch.cuda.is_available() else "cpu" 
