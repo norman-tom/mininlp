@@ -10,11 +10,11 @@ import os
 
 class TestTraining(unittest.TestCase):
     def test_simple_train(self) -> None:
-        max_seq = 10
-        de = 24
+        max_seq = 128
+        de = 128
         v_size = 26
         n_heads = 4
-        N = 2
+        N = 4
         factor = 4
         mask = torch.triu(torch.ones(max_seq, max_seq), diagonal=1)
         model = DTransformer(N, de, v_size, max_seq, n_heads, factor, mask)
@@ -39,7 +39,7 @@ class TestTraining(unittest.TestCase):
         dataloader = DataLoader(dataset, batch_size=8, shuffle=False)
         criterion = nn.CrossEntropyLoss()
         lr = 0.001
-        n_epochs = 10
+        n_epochs = 20
         training.train(model, dataloader, criterion, lr, n_epochs=n_epochs)
     
     def test_token_train(self) -> None:
