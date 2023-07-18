@@ -116,7 +116,7 @@ class Attention():
                  K: torch.Tensor, 
                  V: torch.Tensor, 
                  mask=None) -> torch.Tensor:
-        Kt = torch.transpose(K, 1, 2)
+        Kt = torch.transpose(K, -2, -1)
         score = torch.matmul(Q, Kt)
         key_dim = torch.tensor(K.size()[2])
         scale = score / torch.sqrt(key_dim)
@@ -133,30 +133,21 @@ class MultiHeadAttention(nn.Module):
     def __init__(self, embedding_dim, num_heads) -> None:
         super().__init__()
         assert embedding_dim % num_heads == 0
-        self._heads = [Attention() for _ in range(num_heads)]
-        # Projection for each Q, K, V in each head + the reprojection W0.
-        _in = embedding_dim
-        _out = embedding_dim // num_heads
-        self._projections = nn.ModuleList([
-            nn.ModuleList([
-                nn.Linear(_in, _out, bias=False),
-                nn.Linear(_in, _out, bias=False),
-                nn.Linear(_in, _out, bias=False)
-            ]) for _ in range(num_heads)
+        self._embedding_dim = embedding_dim
+        self._n_heads = num_heads
+        self._att = Attention()
+        self._projection = nn.ModuleList([
+            nn.Linear(embedding_dim, embedding_dim) for _ in range(3)
         ])
-        self._reprojection = nn.Linear(_in, _in)
+        self._reprojection = nn.Linear(embedding_dim, embedding_dim)
 
     def forward(self, Q, K, V, mask=None) -> torch.Tensor:
-        #TODO remove loop and make it parallelizable.
-        x = [
-            head(
-                proj[0](Q), 
-                proj[1](K), 
-                proj[2](V),
-                mask
-            ) for head, proj in zip(self._heads, self._projections)
-        ]
-        x = torch.cat(x, dim=-1)
+        B, T, C = Q.size()
+        Q = self._projection[0](Q).view(B, T, self._n_heads, C // self._n_heads).transpose(1, 2)
+        K = self._projection[1](K).view(B, T, self._n_heads, C // self._n_heads).transpose(1, 2)
+        V = self._projection[2](V).view(B, T, self._n_heads, C // self._n_heads).transpose(1, 2)
+        x = self._att(Q, K, V, mask)
+        x = x.transpose(1, 2).contiguous().view(B, T, C)
         x = self._reprojection(x)
         return x
 
