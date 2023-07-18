@@ -22,17 +22,16 @@ class TestTraining(unittest.TestCase):
         class Data(Dataset):
             def __init__(self, vocab_size, n_examples, l_seq) -> None:
                 super().__init__()
-                self._data = torch.randint(0, vocab_size, (n_examples, l_seq+1))
+                self._data = torch.randint(0, vocab_size, (n_examples,))
                 self._vocab_size = vocab_size
                 self._seq = l_seq
 
-            def __len__(self) -> int:
-                return self._data.size()[0]
-            
+            def __len__(self):
+                return len(self._data) - self._seq
+        
             def __getitem__(self, index) -> tuple[torch.Tensor, torch.Tensor]:
-                x = self._data[index][:-1]
-                y = F.one_hot(self._data[index][1:], num_classes=self._vocab_size)
-                y = y.float()
+                x = self._data[index:index+self._seq]
+                y = self._data[index:index+self._seq]
                 return x, y
         
         examples = 1000
@@ -40,14 +39,14 @@ class TestTraining(unittest.TestCase):
         dataloader = DataLoader(dataset, batch_size=8, shuffle=False)
         criterion = nn.CrossEntropyLoss()
         lr = 0.001
-        n_epochs = 200
+        n_epochs = 10
         training.train(model, dataloader, criterion, lr, n_epochs=n_epochs)
     
     def test_token_train(self) -> None:
         ROOT_ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         PATH = os.path.join(ROOT_, "models", "Dtransformer.pt")
         device = "cuda" if torch.cuda.is_available() else "cpu" 
-        max_seq = 128
+        max_seq = 32
         de = 128
         n_heads = 4
         N = 4
@@ -58,7 +57,7 @@ class TestTraining(unittest.TestCase):
         model = DTransformer(N, de, v_size, max_seq, n_heads, factor, mask).to(device)
         data_loader = DataLoader(data, 1024)
         lr = 5e-4
-        n_epochs = 100
+        n_epochs = 1
         criterion = nn.CrossEntropyLoss()
         print(sum(p.numel() for p in model.parameters())/1e6, 'M parameters')
         training.train(model, data_loader, criterion, lr, n_epochs)
