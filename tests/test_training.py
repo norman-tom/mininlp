@@ -9,12 +9,13 @@ from mininlp.data import SequenceDataset
 import os
 
 class TestTraining(unittest.TestCase):
-    def test_simple_train(self):
-        max_seq = 10
-        de = 24
+
+    def test_simple_train(self) -> None:
+        max_seq = 64
+        de = 128
         v_size = 26
         n_heads = 4
-        N = 2
+        N = 4
         factor = 4
         mask = torch.triu(torch.ones(max_seq, max_seq), diagonal=1)
         model = DTransformer(N, de, v_size, max_seq, n_heads, factor, mask)
@@ -22,29 +23,27 @@ class TestTraining(unittest.TestCase):
         class Data(Dataset):
             def __init__(self, vocab_size, n_examples, l_seq) -> None:
                 super().__init__()
-                self._data = torch.randint(0, vocab_size, (n_examples, l_seq+1))
+                self._data = torch.randint(0, vocab_size, (n_examples,))
                 self._vocab_size = vocab_size
                 self._seq = l_seq
 
             def __len__(self):
-                return self._data.size()[0]
-            
-            def __getitem__(self, index) -> torch.Tensor:
-                x = self._data[index][:-1]
-                y = F.one_hot(self._data[index][1:], num_classes=self._vocab_size)
-                y = y.float()
+                return len(self._data) - self._seq
+        
+            def __getitem__(self, index) -> tuple[torch.Tensor, torch.Tensor]:
+                x = self._data[index:index+self._seq]
+                y = self._data[index:index+self._seq]
                 return x, y
         
         examples = 1000
         dataset = Data(v_size, examples, max_seq)
         dataloader = DataLoader(dataset, batch_size=8, shuffle=False)
         criterion = nn.CrossEntropyLoss()
-
         lr = 0.001
-        n_epochs = 200
+        n_epochs = 20
         training.train(model, dataloader, criterion, lr, n_epochs=n_epochs)
     
-    def test_token_train(self):
+    def test_token_train(self) -> None:
         ROOT_ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         PATH = os.path.join(ROOT_, "models", "Dtransformer.pt")
         device = "cuda" if torch.cuda.is_available() else "cpu" 
