@@ -48,7 +48,7 @@ class TestTraining(unittest.TestCase):
         ROOT_ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         PATH = os.path.join(ROOT_, "models", "Dtransformer.pt")
         device = "cuda" if torch.cuda.is_available() else "cpu" 
-        max_seq = 128
+        max_seq = 64
         de = 128
         n_heads = 4
         N = 4
