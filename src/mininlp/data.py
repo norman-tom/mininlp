@@ -36,8 +36,8 @@ class Tokenizer():
         """
 
         tokens = {"tokens": self._tokens, "token_ids": self._token_ids}
-        pickle.dump(tokens, open(os.path.join(path, ".pkl"), "wb"))
-        with open(os.path.join(path, ".txt"), "w") as f:
+        pickle.dump(tokens, open(path + ".pkl", "wb"))
+        with open(path + ".txt", "w") as f:
             f.write("\n".join(self._tokens.values()))
 
     def load(self, path: str) -> None:
@@ -54,9 +54,9 @@ class Tokenizer():
         self._token_ids = tokens["token_ids"]
 
 class SequenceDataset(Dataset):
-    def __init__(self, path: str, max_seq: int, tokenizer: Tokenizer) -> None:
+    def __init__(self, raw: str, max_seq: int, tokenizer: Tokenizer) -> None:
         super().__init__()
-        self._raw: str = open(path).read()
+        self._raw: str = raw
         self._tokenizer: Tokenizer = tokenizer
         self._sequence: str = self._tokenizer.encode(self._raw)
         self._max_seq: int = max_seq

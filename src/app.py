@@ -24,20 +24,21 @@ def train():
     vocabulary.add("<sos>")
     vocabulary.add("<eos>")
     tokenizer = Tokenizer(vocabulary)
-    data = SequenceDataset(os.path.join("data", "anna.txt"), SEQ_LEN, tokenizer)
+    data = SequenceDataset(text, SEQ_LEN, tokenizer)
     mask = torch.triu(torch.ones(SEQ_LEN, SEQ_LEN), diagonal=1).to(device)
     model = DTransformer(LAYERS, EMBEDDING_DIM, len(vocabulary), SEQ_LEN, HEADS, FACTOR, mask).to(device)
     data_loader = DataLoader(data, 1024)
     criterion = nn.CrossEntropyLoss()
-    training.train(model, data_loader, criterion, 5e-4, 1)
+    training.train(model, data_loader, criterion, 5e-4, 100)
     tokenizer.save(os.path.join(ROOT, "models", "vocabulary"))
     torch.save(model.state_dict(), MODEL_PATH)
 
 def inference():
-    tokenizer = Tokenizer(pickle.load(open(os.path.join(ROOT, "models", "vocabulary.pkl"), "rb")))
+    tokenizer = Tokenizer()
+    tokenizer.load(os.path.join(ROOT, "models", "vocabulary.pkl"))
     model = DTransformer(LAYERS, EMBEDDING_DIM, len(tokenizer), SEQ_LEN, HEADS, FACTOR, None)
     model.load_state_dict(torch.load(MODEL_PATH, map_location=torch.device(device="cpu")))
-    prompt = "The meaning of life is"
+    prompt = "Stepan Arkadyevitch was a truthful"
     prompt = tokenizer.encode(prompt)
     prompt = F.pad(prompt, pad=(SEQ_LEN - len(prompt), 0), mode='constant', value=tokenizer._token_ids["<sos>"])
     model.eval()
