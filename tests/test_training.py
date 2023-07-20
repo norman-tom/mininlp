@@ -9,6 +9,7 @@ from mininlp.data import SequenceDataset
 import os
 
 class TestTraining(unittest.TestCase):
+
     def test_simple_train(self) -> None:
         max_seq = 128
         de = 128

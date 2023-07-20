@@ -132,7 +132,7 @@ class TestModel(unittest.TestCase):
 
     def test_generate_char(self):
         ROOT_ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        PATH = os.path.join(ROOT_, "models", "Dtransformer_100.pt")
+        PATH = os.path.join(ROOT_, "models", "Dtransformer_200.pt")
         max_seq = 50
         de = 128
         n_heads = 4
