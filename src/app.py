@@ -10,7 +10,7 @@ from mininlp import training
 from mininlp.data import Tokenizer
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-MODEL_PATH = os.path.join(ROOT, "models", "Dtransformer_200.pt")
+MODEL_PATH = os.path.join(ROOT, "models", "Dtransformer.pt")
 SEQ_LEN = 64
 EMBEDDING_DIM = 128
 HEADS = 4
@@ -19,15 +19,18 @@ FACTOR = 4
 
 def train():
     device = "cuda" if torch.cuda.is_available() else "cpu" 
-    data = SequenceDataset(os.path.join("data", "anna.txt"), SEQ_LEN)
-    v_size = len(data._vocabulary)
+    text = open(os.path.join("data", "anna.txt")).read()
+    vocabulary = set(text)
+    vocabulary.add("<sos>")
+    vocabulary.add("<eos>")
+    tokenizer = Tokenizer(vocabulary)
+    data = SequenceDataset(os.path.join("data", "anna.txt"), SEQ_LEN, tokenizer)
     mask = torch.triu(torch.ones(SEQ_LEN, SEQ_LEN), diagonal=1).to(device)
-    model = DTransformer(LAYERS, EMBEDDING_DIM, v_size, SEQ_LEN, HEADS, FACTOR, mask).to(device)
+    model = DTransformer(LAYERS, EMBEDDING_DIM, len(vocabulary), SEQ_LEN, HEADS, FACTOR, mask).to(device)
     data_loader = DataLoader(data, 1024)
     criterion = nn.CrossEntropyLoss()
-    print(sum(p.numel() for p in model.parameters())/1e6, 'M parameters')
-    training.train(model, data_loader, criterion, 5e-4, 200)
-    pickle.dump(data._vocabulary, open(os.path.join(ROOT, "models", "vocabulary.pkl"), "wb"))
+    training.train(model, data_loader, criterion, 5e-4, 1)
+    tokenizer.save(os.path.join(ROOT, "models", "vocabulary"))
     torch.save(model.state_dict(), MODEL_PATH)
 
 def inference():
@@ -43,4 +46,5 @@ def inference():
 
 
 if __name__ == "__main__":
+    train()
     inference()

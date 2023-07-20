@@ -127,7 +127,7 @@ class TestModel(unittest.TestCase):
                              factor, 
                              mask)
         prompt = torch.randint(0, 20, (1, max_seq))
-        prompt = model.generator(prompt)
+        prompt = model.generate(prompt)
         prompt
 
     def test_generate_char(self):
@@ -145,6 +145,6 @@ class TestModel(unittest.TestCase):
         model.load_state_dict(torch.load(PATH, map_location=torch.device(device="cpu")))
         model.eval()
         prompt = data.token_encoder("Three days after the quarrel, Prince Stepan Arkadyevitch").unsqueeze(0)
-        o = model.generator(prompt)
+        o = model.generate(prompt)
         sentence = data.token_decoder(o[0])
         sentence

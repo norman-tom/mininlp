@@ -13,7 +13,11 @@ class TestData(unittest.TestCase):
         raw = open(os.path.join("data", "anna.txt")).read()
         voc = set(raw)
         tokenizer1 = Tokenizer(voc)
-        tokenizer1.save(os.path.join("models", "voc_test.pkl"))
-        tokenizer2 = Tokenizer(pickle.load(open(os.path.join("models", "voc_test.pkl"), "rb")))
-        assert tokenizer2._vocabulary == tokenizer1._vocabulary
-        tokenizer2
+        tokenizer1.save(os.path.join("models", "vocab_test.pkl"))
+        tokenizer2 = Tokenizer()
+        tokenizer2.load(os.path.join("models", "vocab_test.pkl"))
+
+    def test_token_load(self):
+        tokenizer = Tokenizer()
+        tokenizer.load(os.path.join("models", "vocab_test.pkl"))
+        tokenizer

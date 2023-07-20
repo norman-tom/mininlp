@@ -6,6 +6,7 @@ from torch.utils.data import (Dataset, DataLoader)
 from mininlp.transformer import DTransformer
 import mininlp.training as training
 from mininlp.data import SequenceDataset
+from mininlp.data import Tokenizer
 import os
 
 class TestTraining(unittest.TestCase):
@@ -47,15 +48,19 @@ class TestTraining(unittest.TestCase):
         ROOT_ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         PATH = os.path.join(ROOT_, "models", "Dtransformer.pt")
         device = "cuda" if torch.cuda.is_available() else "cpu" 
-        max_seq = 32
+        max_seq = 64
         de = 128
         n_heads = 4
         N = 4
         factor = 4
-        data = SequenceDataset(os.path.join("data", "anna.txt"), max_seq)
-        v_size = len(data._vocabulary)
+        text = open(os.path.join("data", "anna.txt")).read()
+        vocabulary = set(text)
+        vocabulary.add("<sos>")
+        vocabulary.add("<eos>")
+        tokenizer = Tokenizer(vocabulary)
+        data = SequenceDataset(os.path.join("data", "anna.txt"), max_seq, tokenizer)
         mask = torch.triu(torch.ones(max_seq, max_seq), diagonal=1).to(device)
-        model = DTransformer(N, de, v_size, max_seq, n_heads, factor, mask).to(device)
+        model = DTransformer(N, de, len(tokenizer._token_ids), max_seq, n_heads, factor, mask).to(device)
         data_loader = DataLoader(data, 1024)
         lr = 5e-4
         n_epochs = 1
