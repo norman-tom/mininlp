@@ -3,12 +3,14 @@ import pickle
 import torch
 from torch import nn
 from torch.utils.data import DataLoader
+import torch.nn.functional as F
 from mininlp.transformer import DTransformer
 from mininlp.data import SequenceDataset
 from mininlp import training
+from mininlp.data import Tokenizer
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-MODEL_PATH = os.path.join(ROOT, "models", "Dtransformer.pt")
+MODEL_PATH = os.path.join(ROOT, "models", "Dtransformer_200.pt")
 SEQ_LEN = 64
 EMBEDDING_DIM = 128
 HEADS = 4
@@ -28,5 +30,17 @@ def train():
     pickle.dump(data._vocabulary, open(os.path.join(ROOT, "models", "vocabulary.pkl"), "wb"))
     torch.save(model.state_dict(), MODEL_PATH)
 
+def inference():
+    tokenizer = Tokenizer(pickle.load(open(os.path.join(ROOT, "models", "vocabulary.pkl"), "rb")))
+    model = DTransformer(LAYERS, EMBEDDING_DIM, len(tokenizer), SEQ_LEN, HEADS, FACTOR, None)
+    model.load_state_dict(torch.load(MODEL_PATH, map_location=torch.device(device="cpu")))
+    prompt = "The meaning of life is"
+    prompt = tokenizer.encode(prompt)
+    prompt = F.pad(prompt, pad=(SEQ_LEN - len(prompt), 0), mode='constant', value=tokenizer._token_ids["<sos>"])
+    model.eval()
+    o = model.generate(prompt[None])
+    print(*tokenizer.decode(o[0]))
+
+
 if __name__ == "__main__":
-    train()
+    inference()

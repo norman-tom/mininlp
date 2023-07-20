@@ -246,7 +246,7 @@ class DTransformer(nn.Module):
         x = self._lang_head(x, self._probabilties)
         return x
     
-    def generator(self, prompt: torch.Tensor) -> torch.Tensor:
+    def generate(self, prompt: torch.Tensor) -> torch.Tensor:
         """Generator for the DTransformer. 
 
         Parameters
