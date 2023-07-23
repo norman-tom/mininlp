@@ -10,10 +10,10 @@ from mininlp import training
 from mininlp.data import Tokenizer
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-MODEL_PATH = os.path.join(ROOT, "models", "Dtransformer.pt")
-SEQ_LEN = 64
-EMBEDDING_DIM = 128
-HEADS = 4
+MODEL_PATH = os.path.join(ROOT, "models", "Dtransformer_long.pt")
+SEQ_LEN = 128
+EMBEDDING_DIM = 512
+HEADS = 8
 LAYERS = 4
 FACTOR = 4
 
@@ -29,13 +29,13 @@ def train():
     model = DTransformer(LAYERS, EMBEDDING_DIM, len(vocabulary), SEQ_LEN, HEADS, FACTOR, mask).to(device)
     data_loader = DataLoader(data, 1024)
     criterion = nn.CrossEntropyLoss()
-    training.train(model, data_loader, criterion, 5e-4, 100)
-    tokenizer.save(os.path.join(ROOT, "models", "vocabulary"))
+    training.train(model, data_loader, criterion, 1e-4, 20)
+    tokenizer.save(os.path.join(ROOT, "models", "vocabulary_long"))
     torch.save(model.state_dict(), MODEL_PATH)
 
 def inference():
     tokenizer = Tokenizer()
-    tokenizer.load(os.path.join(ROOT, "models", "vocabulary.pkl"))
+    tokenizer.load(os.path.join(ROOT, "models", "vocabulary_long.pkl"))
     model = DTransformer(LAYERS, EMBEDDING_DIM, len(tokenizer), SEQ_LEN, HEADS, FACTOR, None)
     model.load_state_dict(torch.load(MODEL_PATH, map_location=torch.device(device="cpu")))
     prompt = "Stepan Arkadyevitch was a truthful"
