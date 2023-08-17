@@ -9,33 +9,49 @@ from mininlp.data import SequenceDataset
 from mininlp import training
 from mininlp.data import Tokenizer
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-MODEL_PATH = os.path.join(ROOT, "models", "Dtransformer_long.pt")
+
+MODEL_NAME = 'Dtransformer_large'
 SEQ_LEN = 128
 EMBEDDING_DIM = 512
 HEADS = 8
 LAYERS = 4
 FACTOR = 4
+BATCH_SIZE = 64
 
-def train():
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+MODEL_PATH = os.path.join(ROOT, "models")
+
+def train(resume=None):
     device = "cuda" if torch.cuda.is_available() else "cpu" 
+
     text = open(os.path.join("data", "anna.txt")).read()
-    vocabulary = set(text)
-    vocabulary.add("<sos>")
-    vocabulary.add("<eos>")
-    tokenizer = Tokenizer(vocabulary)
+
+    if resume is None:
+        vocabulary = set(text)
+        vocabulary.add("<sos>")
+        vocabulary.add("<eos>")
+        tokenizer = Tokenizer(vocabulary)
+    else:
+        tokenizer = Tokenizer()
+        tokenizer.load(os.path.join(MODEL_PATH, 'vocabulary_large.pkl'))
+
     data = SequenceDataset(text, SEQ_LEN, tokenizer)
+    data_loader = DataLoader(data, BATCH_SIZE)
+
     mask = torch.triu(torch.ones(SEQ_LEN, SEQ_LEN), diagonal=1).to(device)
-    model = DTransformer(LAYERS, EMBEDDING_DIM, len(vocabulary), SEQ_LEN, HEADS, FACTOR, mask).to(device)
-    data_loader = DataLoader(data, 1024)
+    model = DTransformer(LAYERS, EMBEDDING_DIM, len(tokenizer), SEQ_LEN, HEADS, FACTOR, mask).to(device)
+    if resume is not None:
+        model.load_state_dict(os.path.join(MODEL_PATH, MODEL_NAME + '.pt'))
+
     criterion = nn.CrossEntropyLoss()
     training.train(model, data_loader, criterion, 1e-4, 20)
-    tokenizer.save(os.path.join(ROOT, "models", "vocabulary_long"))
-    torch.save(model.state_dict(), MODEL_PATH)
+
+    tokenizer.save(os.path.join(ROOT, "models", "vocabulary_large"))
+    torch.save(model.state_dict(), os.path.join(MODEL_PATH, MODEL_NAME + '.pt'))
 
 def inference():
     tokenizer = Tokenizer()
-    tokenizer.load(os.path.join(ROOT, "models", "vocabulary_long.pkl"))
+    tokenizer.load(os.path.join(ROOT, "models", "vocabulary_large.pkl"))
     model = DTransformer(LAYERS, EMBEDDING_DIM, len(tokenizer), SEQ_LEN, HEADS, FACTOR, None)
     model.load_state_dict(torch.load(MODEL_PATH, map_location=torch.device(device="cpu")))
     prompt = "Stepan Arkadyevitch was a truthful"
@@ -47,5 +63,5 @@ def inference():
 
 
 if __name__ == "__main__":
-    train()
+    train('Dtransformer_large')
     inference()
