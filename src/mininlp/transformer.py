@@ -223,7 +223,7 @@ class DTransformer(nn.Module):
                  mask: torch.Tensor=None) -> None:
         super().__init__()
         self._embedding = Embedding(vocab_size, embedding_dim, max_seq)
-        self._decoder = Decoder(embedding_dim, num_heads, factor)
+        self._decoders = nn.ModuleList(Decoder(embedding_dim, num_heads, factor) for _ in range(N))
         self._lang_head = LanguageHead(embedding_dim, vocab_size)
         self._probabilties = False
         self._mask = mask
@@ -232,8 +232,8 @@ class DTransformer(nn.Module):
 
     def forward(self, tkn_ids) -> torch.Tensor:
         x = self._embedding(tkn_ids)
-        for _ in range(self._N):
-            x = self._decoder(x, None, self._mask)
+        for decoder in self._decoders:
+            x = decoder(x, None, self._mask)
         x = self._lang_head(x, self._probabilties)
         return x
     
