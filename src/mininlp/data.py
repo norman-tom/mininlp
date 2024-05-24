@@ -70,7 +70,7 @@ class Tokenizer():
         if isinstance(tokens, str):
             tokens = [t for t in tokens]
 
-        return torch.tensor([self._token_ids[t] for t in tokens])
+        return torch.tensor([self._token_ids[t] for t in tokens], dtype=torch.int32)
     
     def save(self, path: str) -> None:
         """Save the tokenizer state to a file.
@@ -154,7 +154,7 @@ class SequenceDataset(Dataset):
         """Pad a sequence with the padding token to a given length.
         """
 
-        tensor = torch.full((length - len(sequence),), self._tokenizer._token_ids["<pad>"])
+        tensor = torch.full((length - len(sequence),), self._tokenizer._token_ids["<pad>"], dtype=torch.int32)
         return torch.cat((tensor, sequence))
 
     def process_example(

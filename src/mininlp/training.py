@@ -11,12 +11,11 @@ def train(model: nn.Module , data: DataLoader, criterion, lr, n_epochs):
         n_batch = 0.0
         epoch_loss = 0.0
         for x, y in data:
-
             x = x.to(device)
             y = y.to(device)
 
-            o = model(x)
-            loss = criterion(o[:,-1,:], y)
+            o = model(x) 
+            loss = criterion(o[:,-1,:], y.long())
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()

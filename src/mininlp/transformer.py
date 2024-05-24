@@ -176,6 +176,7 @@ class Decoder(nn.Module):
         self._mmha = MultiHeadAttention(embedding_dim, num_heads)
         self._mha = MultiHeadAttention(embedding_dim, num_heads)
         self._ff = FeedForward(embedding_dim, factor)
+        self.drop = nn.Dropout(0.1)
     
     def forward(self, x: torch.Tensor, z: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
         x = self._laynorm1(x)
@@ -185,6 +186,7 @@ class Decoder(nn.Module):
             x = self._laynorm2(x)
             x = x + self._mha(z, z, x)
         x = self._ff(x)
+        x = self.drop(x)
         return x
 
 class DTransformer(nn.Module):
@@ -230,32 +232,36 @@ class DTransformer(nn.Module):
         self._seq_len = max_seq
 
     def forward(self, tkn_ids) -> torch.Tensor:
-        x = self._embedding(tkn_ids)
+        x = self._embedding(tkn_ids) 
         for decoder in self._decoders:
             x = decoder(x, None, self._mask)
         x = self._lang_head(x)
         return x
     
-    def generate(self, prompt: torch.Tensor) -> torch.Tensor:
+    def generate(self, prompt: torch.Tensor, n: int) -> torch.Tensor:
         """Generator for the DTransformer. 
 
         Parameters
         ----------
         prompt : torch.Tensor
             The sequence of token ids to start the text generation.
+        n: int
+            The number of tokens to generate.
         
         Returns
         -------
         torch.Tensor
             The generated sequence of token ids.
         """
-
+        buffer = torch.empty(0, dtype=torch.long, device=prompt.device)
         prompt = prompt[:, -self._seq_len:]  # Truncate the prompt to the max sequence length.
-        for _ in range(self._seq_len):
+        for _ in range(n):
             o = self(prompt)                # Predict the sequence
-            t = torch.multinomial(o[-1], 1) # Sample from vocabulary using pytorch multinomial
-            prompt = torch.cat([prompt[-1][1:], t[-1:,:][-1]]).unsqueeze(0) # Update the prompt with the predicted token
-        return prompt
+            o = F.softmax(o, dim=-1)        # Softmax the output (probabilities of the next token
+            o = torch.multinomial(o.squeeze(), 1)[-1] # Sample from vocabulary using pytorch multinomial
+            prompt = torch.cat([prompt[:,1:], o[None]], dim=1) # Update the prompt with the predicted token
+            buffer = torch.cat([buffer, o], dim=0) # Append the predicted token to the buffer
+        return buffer
     
 class ETransformer():
     """Encoder only Transformer
