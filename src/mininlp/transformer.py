@@ -79,9 +79,8 @@ class LanguageHead(nn.Module):
         super().__init__()
         self._projection = nn.Linear(embedding_dim, vocab_size)
     
-    def forward(self, x: torch.Tensor, probabilities=False) -> torch.Tensor:
-        x = self._projection(x)
-        return F.softmax(x, dim=2) if probabilities else x
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return self._projection(x)
 
 class FeedForward(nn.Module):
     """Feedforward module, skip connection, layer normalisation 
@@ -132,7 +131,6 @@ class MultiHeadAttention(nn.Module):
 
     def __init__(self, embedding_dim, num_heads) -> None:
         super().__init__()
-        assert embedding_dim % num_heads == 0
         self._embedding_dim = embedding_dim
         self._n_heads = num_heads
         self._att = Attention()
@@ -178,13 +176,17 @@ class Decoder(nn.Module):
         self._mmha = MultiHeadAttention(embedding_dim, num_heads)
         self._mha = MultiHeadAttention(embedding_dim, num_heads)
         self._ff = FeedForward(embedding_dim, factor)
+        self.drop = nn.Dropout(0.1)
     
     def forward(self, x: torch.Tensor, z: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
         x = self._laynorm1(x)
         x = x + self._mmha(x, x, x, mask)
-        x = self._laynorm2(x)
-        if z is not None: x = x + self._mha(z, z, x) # If there is cross attention.
+        if z is not None: 
+            # If there is cross attention
+            x = self._laynorm2(x)
+            x = x + self._mha(z, z, x)
         x = self._ff(x)
+        x = self.drop(x)
         return x
 
 class DTransformer(nn.Module):
@@ -223,42 +225,43 @@ class DTransformer(nn.Module):
                  mask: torch.Tensor=None) -> None:
         super().__init__()
         self._embedding = Embedding(vocab_size, embedding_dim, max_seq)
-        self._decoder = Decoder(embedding_dim, num_heads, factor)
+        self._decoders = nn.ModuleList(Decoder(embedding_dim, num_heads, factor) for _ in range(N))
         self._lang_head = LanguageHead(embedding_dim, vocab_size)
-        self._probabilties = False
         self._mask = mask
         self._N = N
         self._seq_len = max_seq
 
     def forward(self, tkn_ids) -> torch.Tensor:
-        x = self._embedding(tkn_ids)
-        for _ in range(self._N):
-            x = self._decoder(x, None, self._mask)
-        x = self._lang_head(x, self._probabilties)
+        x = self._embedding(tkn_ids) 
+        for decoder in self._decoders:
+            x = decoder(x, None, self._mask)
+        x = self._lang_head(x)
         return x
     
-    def generate(self, prompt: torch.Tensor) -> torch.Tensor:
+    def generate(self, prompt: torch.Tensor, n: int) -> torch.Tensor:
         """Generator for the DTransformer. 
 
         Parameters
         ----------
         prompt : torch.Tensor
             The sequence of token ids to start the text generation.
+        n: int
+            The number of tokens to generate.
         
         Returns
         -------
         torch.Tensor
             The generated sequence of token ids.
         """
-
-        self._probabilties = True # We want probablities from the language head.
+        buffer = torch.empty(0, dtype=torch.long, device=prompt.device)
         prompt = prompt[:, -self._seq_len:]  # Truncate the prompt to the max sequence length.
-        for _ in range(self._seq_len):
+        for _ in range(n):
             o = self(prompt)                # Predict the sequence
-            t = torch.multinomial(o[-1], 1) # Sample from vocabulary using pytorch multinomial
-            prompt = torch.cat([prompt[-1][1:], t[-1:,:][-1]]).unsqueeze(0) # Update the prompt with the predicted token
-        self._probabilties = False
-        return prompt
+            o = F.softmax(o, dim=-1)        # Softmax the output (probabilities of the next token
+            o = torch.multinomial(o.squeeze(), 1)[-1] # Sample from vocabulary using pytorch multinomial
+            prompt = torch.cat([prompt[:,1:], o[None]], dim=1) # Update the prompt with the predicted token
+            buffer = torch.cat([buffer, o], dim=0) # Append the predicted token to the buffer
+        return buffer
     
 class ETransformer():
     """Encoder only Transformer

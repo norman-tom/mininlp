@@ -8,44 +8,73 @@ from mininlp.transformer import DTransformer
 from mininlp.data import SequenceDataset
 from mininlp import training
 from mininlp.data import Tokenizer
+import json
+
+
+MODEL_NAME = 'decoder_transformer_v2.0'
+SEQ_LEN = 128
+EMBEDDING_DIM = 768
+HEADS = 8
+LAYERS = 6
+FACTOR = 4
+BATCH_SIZE = 128
+EPOCHS = 10
+N_DATASET = 10_000_000
+PRE_TRAINED = None
+LR = 8e-5
+
+config = {
+    "model_name": MODEL_NAME,
+    "seq_len": SEQ_LEN,
+    "embedding_dim": EMBEDDING_DIM,
+    "heads": HEADS,
+    "layers": LAYERS,
+    "factor": FACTOR,
+    "batch_size": BATCH_SIZE,
+    "epochs": EPOCHS,
+    "n_dataset": N_DATASET,
+    "pre_trained": PRE_TRAINED,
+    "lr": LR,
+    "batch_size": BATCH_SIZE
+}
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-MODEL_PATH = os.path.join(ROOT, "models", "Dtransformer_long.pt")
-SEQ_LEN = 128
-EMBEDDING_DIM = 512
-HEADS = 8
-LAYERS = 4
-FACTOR = 4
+MODEL_PATH = os.path.join(ROOT, "models")
 
-def train():
+json.dump(config, open(os.path.join(MODEL_PATH, config['model_name'] + '.json'), 'w'))
+
+def train(resume=None):
     device = "cuda" if torch.cuda.is_available() else "cpu" 
-    text = open(os.path.join("data", "anna.txt")).read()
-    vocabulary = set(text)
-    vocabulary.add("<sos>")
-    vocabulary.add("<eos>")
-    tokenizer = Tokenizer(vocabulary)
-    data = SequenceDataset(text, SEQ_LEN, tokenizer)
-    mask = torch.triu(torch.ones(SEQ_LEN, SEQ_LEN), diagonal=1).to(device)
-    model = DTransformer(LAYERS, EMBEDDING_DIM, len(vocabulary), SEQ_LEN, HEADS, FACTOR, mask).to(device)
-    data_loader = DataLoader(data, 1024)
-    criterion = nn.CrossEntropyLoss()
-    training.train(model, data_loader, criterion, 1e-4, 20)
-    tokenizer.save(os.path.join(ROOT, "models", "vocabulary_long"))
-    torch.save(model.state_dict(), MODEL_PATH)
 
-def inference():
     tokenizer = Tokenizer()
-    tokenizer.load(os.path.join(ROOT, "models", "vocabulary_long.pkl"))
-    model = DTransformer(LAYERS, EMBEDDING_DIM, len(tokenizer), SEQ_LEN, HEADS, FACTOR, None)
-    model.load_state_dict(torch.load(MODEL_PATH, map_location=torch.device(device="cpu")))
-    prompt = "Stepan Arkadyevitch was a truthful"
-    prompt = tokenizer.encode(prompt)
-    prompt = F.pad(prompt, pad=(SEQ_LEN - len(prompt), 0), mode='constant', value=tokenizer._token_ids["<sos>"])
-    model.eval()
-    o = model.generate(prompt[None])
-    print(*tokenizer.decode(o[0]))
+    tokenizer.load(os.path.join(MODEL_PATH, "tokenizer.pkl"))
+
+    data = SequenceDataset("./data/anna.txt", tokenizer, config['seq_len'], config['n_dataset'])
+    data_loader = DataLoader(data, config['batch_size'], shuffle=False, pin_memory=True)
+
+    mask = torch.triu(torch.ones(SEQ_LEN, SEQ_LEN), diagonal=1).to(device)
+    mask = None
+
+    model = DTransformer(
+        config['layers'], 
+        config['embedding_dim'], 
+        len(tokenizer), 
+        config['seq_len'], 
+        config['heads'], 
+        config['factor'], 
+        mask).to(device)
+
+    if resume is not None:
+        model.load_state_dict(torch.load(os.path.join(MODEL_PATH, resume + '.pt')))
+
+    print(f'Model size: {sum(p.numel() for p in model.parameters() if p.requires_grad)}')
+
+    model.train()
+    criterion = nn.CrossEntropyLoss()
+    training.train(model, data_loader, criterion, config['lr'], config['epochs'])
+
+    torch.save(model.state_dict(), os.path.join(MODEL_PATH, config['model_name'] + '.pt'))
 
 
 if __name__ == "__main__":
-    train()
-    inference()
+    train(config['pre_trained'])

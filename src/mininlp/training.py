@@ -11,16 +11,17 @@ def train(model: nn.Module , data: DataLoader, criterion, lr, n_epochs):
         n_batch = 0.0
         epoch_loss = 0.0
         for x, y in data:
-            N = x.size()[0] * x.size()[1]
             x = x.to(device)
             y = y.to(device)
+
+            o = model(x) 
+            loss = criterion(o[:,-1,:], y.long())
             optimizer.zero_grad()
-            o = model(x)
-            # Each sequence predicting the next token in that sequence for all positions, across all batches. 
-            loss = criterion(o.view(N, -1), y.view(N))  
             loss.backward()
+            optimizer.step()
+
             n_batch += 1
             epoch_loss += loss.item()
-            optimizer.step()
+
         epoch_loss /= n_batch
         epochs.set_postfix(loss=f"{epoch_loss: .4f}")
