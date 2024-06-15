@@ -91,6 +91,7 @@ class FeedForward(nn.Module):
     def __init__(self, embedding_dim: int, factor: int = 4) -> None:
         super().__init__()
         self._laynorm = nn.LayerNorm(embedding_dim)
+        self._dropout = nn.Dropout(0.2)
         self._ff = nn.Sequential(
             nn.Linear(embedding_dim, factor*embedding_dim),
             nn.ReLU(),
@@ -100,6 +101,7 @@ class FeedForward(nn.Module):
     def forward(self, x) -> torch.Tensor:
         # Layer normalization before feedforward which is standard practice.
         x = self._laynorm(x)
+        x = self._dropout(x)
         x = x + self._ff(x)
         return x
 
@@ -176,7 +178,6 @@ class Decoder(nn.Module):
         self._mmha = MultiHeadAttention(embedding_dim, num_heads)
         self._mha = MultiHeadAttention(embedding_dim, num_heads)
         self._ff = FeedForward(embedding_dim, factor)
-        self.drop = nn.Dropout(0.1)
     
     def forward(self, x: torch.Tensor, z: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
         x = self._laynorm1(x)
@@ -186,7 +187,6 @@ class Decoder(nn.Module):
             x = self._laynorm2(x)
             x = x + self._mha(z, z, x)
         x = self._ff(x)
-        x = self.drop(x)
         return x
 
 class DTransformer(nn.Module):

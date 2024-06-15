@@ -23,5 +23,7 @@ def train(model: nn.Module , data: DataLoader, criterion, lr, n_epochs):
             n_batch += 1
             epoch_loss += loss.item()
 
+            print(f"{int(n_batch)} of {len(data)}")
+
         epoch_loss /= n_batch
         epochs.set_postfix(loss=f"{epoch_loss: .4f}")

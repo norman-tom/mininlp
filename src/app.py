@@ -11,17 +11,17 @@ from mininlp.data import Tokenizer
 import json
 
 
-MODEL_NAME = 'decoder_transformer_v2.0'
-SEQ_LEN = 128
+MODEL_NAME = 'decoder_transformer_v3.0'
+SEQ_LEN = 512
 EMBEDDING_DIM = 768
 HEADS = 8
-LAYERS = 6
+LAYERS = 8
 FACTOR = 4
-BATCH_SIZE = 128
-EPOCHS = 10
+BATCH_SIZE = 256
+EPOCHS = 1
 N_DATASET = 10_000_000
 PRE_TRAINED = None
-LR = 8e-5
+LR = 1e-4
 
 config = {
     "model_name": MODEL_NAME,
