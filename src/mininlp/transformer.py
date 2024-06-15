@@ -117,6 +117,9 @@ class Attention():
                  K: torch.Tensor, 
                  V: torch.Tensor, 
                  mask=None) -> torch.Tensor:
+        """
+        Non flash attention implementation
+        ----------------------------------
         Kt = torch.transpose(K, -2, -1)
         score = torch.matmul(Q, Kt)
         key_dim = torch.tensor(K.size()[2])
@@ -125,7 +128,10 @@ class Attention():
             mask[mask == 1] = torch.inf
             scale = scale - mask
         # softmax over K so last dimension
-        return torch.matmul(F.softmax(scale, dim=-1), V) 
+        v = torch.matmul(F.softmax(scale, dim=-1), V) 
+        """
+        # Flash attention
+        return F.scaled_dot_product_attention(Q, K, V, is_causal=True)
 
 class MultiHeadAttention(nn.Module):
     """Computes the mulit-head attention of Queries, Keys, Values

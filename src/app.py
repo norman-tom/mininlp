@@ -10,18 +10,17 @@ from mininlp import training
 from mininlp.data import Tokenizer
 import json
 
-
-MODEL_NAME = 'decoder_transformer_v3.0'
+MODEL_NAME = 'decoder_transformer_v0.1'
 SEQ_LEN = 512
-EMBEDDING_DIM = 768
-HEADS = 8
-LAYERS = 8
+EMBEDDING_DIM = 768 // 2 
+HEADS = 6
+LAYERS = 6
 FACTOR = 4
-BATCH_SIZE = 256
+BATCH_SIZE = 32
 EPOCHS = 1
-N_DATASET = 10_000_000
-PRE_TRAINED = None
+N_DATASET = 10_000
 LR = 1e-4
+PRE_TRAINED = None
 
 config = {
     "model_name": MODEL_NAME,
@@ -55,6 +54,9 @@ def train(resume=None):
     mask = torch.triu(torch.ones(SEQ_LEN, SEQ_LEN), diagonal=1).to(device)
     mask = None
 
+    # Free speed up with tensor float32 matmul, no so great on 3070
+    # torch.set_float32_matmul_precision('high')
+
     model = DTransformer(
         config['layers'], 
         config['embedding_dim'], 
@@ -63,6 +65,9 @@ def train(resume=None):
         config['heads'], 
         config['factor'], 
         mask).to(device)
+    
+    # torch compile see https://pytorch.org/tutorials/intermediate/torch_compile_tutorial.html not supported on windows
+    # model = torch.compile(model)
 
     if resume is not None:
         model.load_state_dict(torch.load(os.path.join(MODEL_PATH, resume + '.pt')))
@@ -70,11 +75,38 @@ def train(resume=None):
     print(f'Model size: {sum(p.numel() for p in model.parameters() if p.requires_grad)}')
 
     model.train()
+    import time;
     criterion = nn.CrossEntropyLoss()
-    training.train(model, data_loader, criterion, config['lr'], config['epochs'])
+    optimizer = torch.optim.AdamW(model.parameters(), config['lr'])
+    epochs = range(1)
+    for _ in epochs:
+        n_batch = 0
+        epoch_loss = 0.0
+        for x, y in data_loader:
+            #start of batch
+            start = time.time()
 
+            # forward and backwards pass
+            x, y = x.to(device), y.to(device)
+            
+            optimizer.zero_grad()
+            # mixed percision see https://pytorch.org/tutorials/recipes/recipes/amp_recipe.html
+            with torch.autocast(device_type=device, dtype=torch.bfloat16):
+                o = model(x) 
+                loss = criterion(o[:,-1,:], y.long())
+
+            loss.backward()
+            optimizer.step()
+            n_batch += 1
+            epoch_loss += loss.item()
+
+            # print training metrics
+            torch.cuda.synchronize()
+            dt = time.time() - start
+            print(f"Batch: {n_batch} \t Loss: {loss.item():.4f} \t dt: {dt * 1e3:.2f} \t tkn\s: {BATCH_SIZE/(dt):.2f}")
+
+    #training.train(model, data_loader, criterion, config['lr'], config['epochs'])
     torch.save(model.state_dict(), os.path.join(MODEL_PATH, config['model_name'] + '.pt'))
-
 
 if __name__ == "__main__":
     train(config['pre_trained'])
