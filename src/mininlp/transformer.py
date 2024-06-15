@@ -131,7 +131,7 @@ class Attention():
         v = torch.matmul(F.softmax(scale, dim=-1), V) 
         """
         # Flash attention
-        return F.scaled_dot_product_attention(Q, K, V, is_causal=True)
+        return F.scaled_dot_product_attention(Q, K, V, is_causal=mask)
 
 class MultiHeadAttention(nn.Module):
     """Computes the mulit-head attention of Queries, Keys, Values

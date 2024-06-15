@@ -11,14 +11,14 @@ from mininlp.data import Tokenizer
 import json
 
 MODEL_NAME = 'decoder_transformer_v0.1'
-SEQ_LEN = 512
-EMBEDDING_DIM = 768 // 2 
-HEADS = 6
+SEQ_LEN = 1024
+EMBEDDING_DIM = 512
+HEADS = 8
 LAYERS = 6
 FACTOR = 4
 BATCH_SIZE = 32
 EPOCHS = 1
-N_DATASET = 10_000
+N_DATASET = 200_000
 LR = 1e-4
 PRE_TRAINED = None
 
@@ -32,9 +32,9 @@ config = {
     "batch_size": BATCH_SIZE,
     "epochs": EPOCHS,
     "n_dataset": N_DATASET,
-    "pre_trained": PRE_TRAINED,
     "lr": LR,
-    "batch_size": BATCH_SIZE
+    "batch_size": BATCH_SIZE,
+    "pre_trained": PRE_TRAINED
 }
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -48,11 +48,12 @@ def train(resume=None):
     tokenizer = Tokenizer()
     tokenizer.load(os.path.join(MODEL_PATH, "tokenizer.pkl"))
 
+    # Make tokens a factor of 8, increase speed. 
+    for i in range(len(tokenizer), 128):
+        tokenizer._tokens[i] = ["UNK"]
+
     data = SequenceDataset("./data/anna.txt", tokenizer, config['seq_len'], config['n_dataset'])
     data_loader = DataLoader(data, config['batch_size'], shuffle=False, pin_memory=True)
-
-    mask = torch.triu(torch.ones(SEQ_LEN, SEQ_LEN), diagonal=1).to(device)
-    mask = None
 
     # Free speed up with tensor float32 matmul, no so great on 3070
     # torch.set_float32_matmul_precision('high')
@@ -64,7 +65,7 @@ def train(resume=None):
         config['seq_len'], 
         config['heads'], 
         config['factor'], 
-        mask).to(device)
+        True).to(device)
     
     # torch compile see https://pytorch.org/tutorials/intermediate/torch_compile_tutorial.html not supported on windows
     # model = torch.compile(model)
@@ -93,7 +94,7 @@ def train(resume=None):
             # mixed percision see https://pytorch.org/tutorials/recipes/recipes/amp_recipe.html
             with torch.autocast(device_type=device, dtype=torch.bfloat16):
                 o = model(x) 
-                loss = criterion(o[:,-1,:], y.long())
+                loss = criterion(o.transpose(1,2), y.long())
 
             loss.backward()
             optimizer.step()
@@ -103,7 +104,7 @@ def train(resume=None):
             # print training metrics
             torch.cuda.synchronize()
             dt = time.time() - start
-            print(f"Batch: {n_batch} \t Loss: {loss.item():.4f} \t dt: {dt * 1e3:.2f} \t tkn\s: {BATCH_SIZE/(dt):.2f}")
+            print(f"Batch: {n_batch} \t Loss: {loss.item():.4f} \t dt: {dt * 1e3:.2f} \t tkn\s: {BATCH_SIZE * SEQ_LEN/(dt):.2f}")
 
     #training.train(model, data_loader, criterion, config['lr'], config['epochs'])
     torch.save(model.state_dict(), os.path.join(MODEL_PATH, config['model_name'] + '.pt'))

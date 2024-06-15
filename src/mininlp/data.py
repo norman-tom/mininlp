@@ -29,7 +29,7 @@ class Tokenizer():
             self._tokens = {i: c for c, i in self._token_ids.items()}
 
     def __len__(self):
-        return len(self._token_ids)
+        return len(self._tokens)
     
     def decode(self, ids: torch.Tensor) -> list[str]:
         """Decode token ids to tokens.
@@ -167,10 +167,10 @@ class SequenceDataset(Dataset):
         
         assert len(example) == context_length
 
-        tokens_to_get = int(torch.rand(1) * context_length)          # torch.rand is the interval [0, 1), will not return 1. 
-        feature = example[:tokens_to_get]                            # since rand is closed on 1,the returned value is guaranteed to be less than context_length.
-        feature = torch.cat((tokenizer.encode(['<sos>']), feature))  # there will always be space for the start of sentence token.
+        tokens_to_get = int(torch.rand(1) * context_length + 1)        # torch.rand is the interval [0, 1), will not return 1 so + 1 for full range. 
+        label = example[:tokens_to_get]
+        feature = torch.cat((tokenizer.encode(['<sos>']), label[:-1])) # there will always be space for the start of sentence token.
         feature = self.pad_sequence(feature, context_length)
-        label = example[tokens_to_get]
+        label = self.pad_sequence(label, context_length)
 
         return feature, label
