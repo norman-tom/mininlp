@@ -12,7 +12,7 @@ import json
 import sys
 import time
 
-MODEL_NAME = 'decoder_transformer_v0.1'
+MODEL_NAME = 'decoder_transformer_v0.2'
 SEQ_LEN = 1024
 EMBEDDING_DIM = 512     #flash attention can only handle head size of 64
 HEADS = 8
@@ -22,7 +22,7 @@ BATCH_SIZE = 512
 MINI_BATCH = 32
 EPOCHS = 1
 N_DATASET = 900_000
-LR = 35e-5
+LR = 4e-4
 PRE_TRAINED = None
 
 config = {
