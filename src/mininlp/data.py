@@ -145,7 +145,7 @@ class SequenceDataset(Dataset):
         """
         
         indices = torch.randint(0, len(encoded_document) - context_length, (num_examples,))
-        examples = [self.process_example(encoded_document[i: i+context_length], tokenizer, context_length) for i in indices]
+        examples = [self.process_example(encoded_document[i: i+context_length+1], tokenizer, context_length) for i in indices]
         return examples
     
     def pad_sequence(self, 
@@ -165,12 +165,12 @@ class SequenceDataset(Dataset):
         """Generate a training example from a document.
         """
         
-        assert len(example) == context_length
+        assert len(example) == context_length + 1
 
-        tokens_to_get = int(torch.rand(1) * context_length + 1)        # torch.rand is the interval [0, 1), will not return 1 so + 1 for full range. 
-        label = example[:tokens_to_get]
-        feature = torch.cat((tokenizer.encode(['<sos>']), label[:-1])) # there will always be space for the start of sentence token.
-        feature = self.pad_sequence(feature, context_length)
-        label = self.pad_sequence(label, context_length)
+        tokens_to_get = context_length + 1 #int(torch.rand(1) * context_length + 1)        # torch.rand is the interval [0, 1), will not return 1 so + 1 for full range. 
+        label = example[1:tokens_to_get]
+        feature = example[:tokens_to_get-1] #torch.cat((tokenizer.encode(['<sos>']), label[:-1])) # there will always be space for the start of sentence token.
+        #feature = self.pad_sequence(feature, context_length)
+        #label = self.pad_sequence(label, context_length)
 
         return feature, label
